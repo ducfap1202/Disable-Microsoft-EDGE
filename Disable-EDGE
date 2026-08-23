@@ -1,0 +1,139 @@
+@echo off
+:: Kiem tra quyen Administrator
+net session >nul 2>&1 || (echo BAP CHI MAT: Vui long click chuot phai vao file nay va chon "Run as administrator"! & pause & exit)
+
+echo =================================================================
+echo        BAT DAU QUA TRINH CAI DAT INTERNET EXPLORER DOC LAP
+echo =================================================================
+echo.
+
+:: 1. TAO THU MUC VA PHAN MEM IE OPENER
+echo [1/3] Dang bien dich phan mem IE Opener (V5 - Ho tro moi link ^& file)...
+if not exist "C:\Scripts" mkdir "C:\Scripts"
+set "csfile=%temp%\IEOpener.cs"
+set "exefile=C:\Scripts\IE_Opener.exe"
+
+echo using System; > "%csfile%"
+echo using System.Reflection; >> "%csfile%"
+echo using System.Threading; >> "%csfile%"
+echo using System.IO; >> "%csfile%"
+echo class Program { >> "%csfile%"
+echo     static void Main(string[] args) { >> "%csfile%"
+echo         string url = "about:blank"; >> "%csfile%"
+echo         foreach(string arg in args) { >> "%csfile%"
+echo             string a = arg.Replace("\x22", "").Trim(); >> "%csfile%"
+echo             // Loai bo ngay neu nhan dien la file msedge.exe cua IFEO
+echo             if (a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue; >> "%csfile%"
+echo             if (a.StartsWith("http", StringComparison.OrdinalIgnoreCase) ^|^| >> "%csfile%"
+echo                 a.StartsWith("microsoft-edge:", StringComparison.OrdinalIgnoreCase) ^|^| >> "%csfile%"
+echo                 a.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ^|^| >> "%csfile%"
+echo                 File.Exists(a)) { >> "%csfile%"
+echo                 url = a; break; >> "%csfile%"
+echo             } >> "%csfile%"
+echo         } >> "%csfile%"
+echo         if (url.StartsWith("microsoft-edge:", StringComparison.OrdinalIgnoreCase)) { >> "%csfile%"
+echo             url = url.Substring(15); >> "%csfile%"
+echo         } >> "%csfile%"
+echo         try { >> "%csfile%"
+echo             Type ieType = Type.GetTypeFromProgID("InternetExplorer.Application"); >> "%csfile%"
+echo             object ie = Activator.CreateInstance(ieType); >> "%csfile%"
+echo             ieType.InvokeMember("Visible", BindingFlags.SetProperty, null, ie, new object[] { true }); >> "%csfile%"
+echo             ieType.InvokeMember("Navigate", BindingFlags.InvokeMethod, null, ie, new object[] { "about:blank" }); >> "%csfile%"
+echo             Thread.Sleep(300); >> "%csfile%"
+echo             if (url != "about:blank") { >> "%csfile%"
+echo                 ieType.InvokeMember("Navigate", BindingFlags.InvokeMethod, null, ie, new object[] { url }); >> "%csfile%"
+echo             } >> "%csfile%"
+echo         } catch {} >> "%csfile%"
+echo     } >> "%csfile%"
+echo } >> "%csfile%"
+
+set "csc="
+for /d %%a in (%windir%\Microsoft.NET\Framework\v4.0.*) do set "csc=%%a\csc.exe"
+"%csc%" /nologo /target:winexe /out:"%exefile%" "%csfile%"
+del "%csfile%"
+
+
+:: 2. TAO FILE REGISTRY DE THIET LAP HE THONG
+echo [2/3] Dang thiet lap cac thong so bao mat va tao bay Trojan vao Registry...
+set "regfile=%temp%\ie_setup.reg"
+(
+echo Windows Registry Editor Version 5.00
+echo.
+echo ; A. Khoa Extension, vo hieu hoa BHO va chong loi tu dong dong cua so
+echo [HKEY_CURRENT_USER\Software\Microsoft\Internet Explorer\Main]
+echo "Enable Browser Extensions"="no"
+echo "TabProcGrowth"=dword:00000000
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Internet Explorer\Main]
+echo "Enable Browser Extensions"="no"
+echo "TabProcGrowth"=dword:00000000
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Ext\Settings\{1FD49718-1D00-4B19-AF5F-070AF6D5D54C}]
+echo "Flags"=dword:00000001
+echo.
+echo ; B. Kich hoat che do "Ve sau thoat xac" (Trojan Mode) doi msedge.exe thanh IE_Opener
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedge.exe]
+echo "Debugger"="C:\\Scripts\\IE_Opener.exe"
+echo.
+echo ; C. Dang ky IE Opener lam Trinh duyet Mac dinh
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\IE_Opener]
+echo @="IE Opener (Custom)"
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\IE_Opener\Capabilities]
+echo "ApplicationDescription"="Trinh duyet IE Doc lap chong Edge"
+echo "ApplicationIcon"="C:\\Program Files\\Internet Explorer\\iexplore.exe,0"
+echo "ApplicationName"="IE Opener (Custom)"
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\IE_Opener\Capabilities\FileAssociations]
+echo ".htm"="IE_Opener_HTML"
+echo ".html"="IE_Opener_HTML"
+echo ".mht"="IE_Opener_HTML"
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\IE_Opener\Capabilities\URLAssociations]
+echo "http"="IE_Opener_URL"
+echo "https"="IE_Opener_URL"
+echo "microsoft-edge"="IE_Opener_URL"
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\IE_Opener\shell\open\command]
+echo @="\"C:\\Scripts\\IE_Opener.exe\""
+echo.
+echo ; D. Dang ky doc URL Protocol
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_URL]
+echo @="IE Opener URL"
+echo "URL Protocol"=""
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_URL\DefaultIcon]
+echo @="C:\\Program Files\\Internet Explorer\\iexplore.exe,0"
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_URL\shell\open\command]
+echo @="\"C:\\Scripts\\IE_Opener.exe\" \"%%1\""
+echo.
+echo ; E. Dang ky doc File HTML
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_HTML]
+echo @="IE Opener HTML Document"
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_HTML\DefaultIcon]
+echo @="C:\\Program Files\\Internet Explorer\\iexplore.exe,0"
+echo [HKEY_LOCAL_MACHINE\Software\Classes\IE_Opener_HTML\shell\open\command]
+echo @="\"C:\\Scripts\\IE_Opener.exe\" \"%%1\""
+echo.
+echo ; F. Luu vao danh sach Registered Applications
+echo [HKEY_LOCAL_MACHINE\SOFTWARE\RegisteredApplications]
+echo "IE_Opener"="SOFTWARE\\Clients\\StartMenuInternet\\IE_Opener\\Capabilities"
+) > "%regfile%"
+
+:: Chay file reg vao he thong
+regedit /s "%regfile%"
+del "%regfile%"
+
+echo [3/3] Don dep he thong va hoan tat thiet lap...
+taskkill /f /im iexplore.exe >nul 2>&1
+taskkill /f /im msedge.exe >nul 2>&1
+
+echo.
+echo =================================================================
+echo         THIET LAP THANH CONG 100%%. IE DA DUOC DOC LAP!
+echo =================================================================
+echo.
+echo BBUOC CUOI CUNG (DE KICH HOAT BAY EDGE):
+echo 1. Nhan Windows + I de mo Settings -^> Apps -^> Default Apps.
+echo 2. Tim chu "Microsoft Edge", vao trong va bam "Set default" hoac 
+echo    gan moi muc (http, https, .html) ve lai Edge.
+echo    (Yen tam! He thong goi Edge se tu dong chuyen cho IE_Opener).
+echo.
+echo * Luu y voi file ECM: Click chuot phai -^> Open with -^> Chon 
+echo   "Choose another app" -^> Tim C:\Scripts\IE_Opener.exe va tich
+echo   chon "Always use this app".
+echo =================================================================
+pause
